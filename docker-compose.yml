@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  eureka:
+    image: openjdk:17-jdk-alpine
+    container_name: eureka-discovery-server
+    ports:
+      - "8761:8761"
+    volumes:
+      - ./discovery-server/target/discovery-server-0.0.1-SNAPSHOT.jar:/app/discovery-server-0.0.1-SNAPSHOT.jar
+    working_dir: /app
+    command: ["sh", "-c", "apk --no-cache add curl && java -jar /app/discovery-server-0.0.1-SNAPSHOT.jar"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    networks:
+      - my-network
+
+  api-gateway:
+    image: openjdk:17-jdk-alpine
+    container_name: api-gateway
+    ports:
+      - "9090:8080"
+    volumes:
+      - ./api-gateway/target/api-gateway-0.0.1-SNAPSHOT.jar:/app/api-gateway-0.0.1-SNAPSHOT.jar
+    working_dir: /app
+    command: ["java", "-jar", "/app/api-gateway-0.0.1-SNAPSHOT.jar"]
+    depends_on:
+      eureka:
+        condition: service_healthy
+    networks:
+      - my-network
+    environment:
+      - SPRING_APPLICATION_JSON={"eureka.client.service-url.defaultZone":"http://eureka:8761/eureka"}
+
+networks:
+  my-network:
+    name: my-network
